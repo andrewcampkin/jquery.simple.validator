@@ -64,10 +64,11 @@
         scrollToFirstError: true,           //If error, move scroll till first page
         scrollToFirstElementTime: 1000,     //Tiempo de scroll hasta el primer elemento
         scrollToFirstElementOffset: 0,      //Offset in pixels to have a margin on scroll
-        debug : false,                      //Sacamos informacion por la consola de debug
+        debug: false,                      //Sacamos informacion por la consola de debug
         dataDynamicRevalidate: false,       //Sets auto-validate fields onblur.
         validationSummary: false,           //Activate if u want the errors to appear in a central place defined in the html control "validationSummaryControl"
-        validationSummaryControl: ''
+        validationSummaryControl: '',
+        visibleFieldsOnly: true
     };
 
     var validators = {
@@ -89,13 +90,13 @@
 
 
     /***************************************************************************
-    *                                   PUBLIC METHODS
-    ****************************************************************************/
+     *                                   PUBLIC METHODS
+     ****************************************************************************/
 
     /**
-    * PUBLIC METHOD
-    * Init the plugin and the default validators
-    */
+     * PUBLIC METHOD
+     * Init the plugin and the default validators
+     */
     $.fn.initialize = function (options) {
         //Recogemos las opciones del usuario y si no especifican los valores por defecto
         this.settings = $.extend(settings, options);
@@ -104,23 +105,32 @@
         this.registerAllValidators();
 
         if (settings.dataDynamicRevalidate) {
-            
-            this.find("input,select,textarea").each(function () {
-                if (settings.debug) console.log("------------- #" + $(this).attr("id") + " ------------------");
-                $(this).blur(function () {
-                    console.log(" >> BLUR: " + $(this).attr("id"));
-                    $(this).validateField(this.settings)
-                });
-            })
+            if (settings.visibleFieldsOnly) {
+                this.find("input,select,textarea:visible").each(function () {
+                    if (settings.debug) console.log("------------- #" + $(this).attr("id") + " ------------------");
+                    $(this).blur(function () {
+                        console.log(" >> BLUR: " + $(this).attr("id"));
+                        $(this).validateField(this.settings)
+                    });
+                })
+            } else {
+                this.find("input,select,textarea").each(function () {
+                    if (settings.debug) console.log("------------- #" + $(this).attr("id") + " ------------------");
+                    $(this).blur(function () {
+                        console.log(" >> BLUR: " + $(this).attr("id"));
+                        $(this).validateField(this.settings)
+                    });
+                })
+            }
         }
-    }
+    };
 
     /**
-    * PUBLIC METHOD
-    * Función validar, que lanza las validaciones pertinentes para cada control (Todos los controles)
-    */
+     * PUBLIC METHOD
+     * Función validar, que lanza las validaciones pertinentes para cada control (Todos los controles)
+     */
     $.fn.validate = function () {
-        
+
         validation_ok = true;
         firstErrorControlToScroll = null;
 
@@ -131,9 +141,16 @@
         }
 
         //For each form element, we just execute validation
-        this.find("input,select,textarea").each(function () {
-            $(this).validateField(this.settings);
-        })
+        if (settings.visibleFieldsOnly) {
+            this.find("input:visible,select:visible,textarea:visible").each(function () {
+                $(this).validateField(this.settings);
+            });
+        } else {
+            this.find("input,select,textarea").each(function () {
+                $(this).validateField(this.settings);
+            });
+        }
+
 
         //Scrollamos hasta el primer error
         if (settings.scrollToFirstError && firstErrorControlToScroll != null) {
@@ -141,20 +158,20 @@
                 firstErrorControlToScroll = $("#" + settings.validationSummaryControl);
                 firstErrorControlToScroll.show();
             }
-            
+
             $('html, body').animate({
                 scrollTop: firstErrorControlToScroll.offset().top - settings.scrollToFirstElementOffset
             }, settings.scrollToFirstElementTime);
         }
 
         return validation_ok;
-        
+
     };
 
     /**
-    * PRIVATE METHOD
-    * Method that registers all the default validators
-    */
+     * PRIVATE METHOD
+     * Method that registers all the default validators
+     */
     $.fn.registerAllValidators = function () {
 
         /* DATA-REQUIRED */
@@ -162,9 +179,9 @@
             validators.data_required,
             function (control) {
                 var validator_name = validators.data_required;
-                
+
                 if (control.attr(validator_name) != null) {
-                    if (control.isEmpty())  return false;
+                    if (control.isEmpty()) return false;
                     else return true;
                 }
             }
@@ -191,7 +208,7 @@
                 var validator_name = validators.data_date_format;
                 if (control.attr(validator_name) != null) {
                     var dateFormat = control.attr(validator_name);
-                    
+
                     var stringDate = control.val();
                     var separator = control.attr(validator_name + "-separator");
                     var dateok = true;
@@ -199,7 +216,10 @@
                         dateok = $(this).checkDateDMY(stringDate);
 
                         stringDate = $(this).parseDate(stringDate, dateFormat, separator);
-                    } catch (e) { dateok = false; alert(e);}
+                    } catch (e) {
+                        dateok = false;
+                        alert(e);
+                    }
                     if (!control.isEmpty() && !dateok) {
                         return false;
                     } else {
@@ -248,13 +268,13 @@
         );
 
         /* INPUT RADIO SHOULD HAVE SELECTED VALUE */
-        
+
         this.registerValidator(validators.data_radio_selected,
             function (control) {
                 var validator_name = validators.data_radio_selected;
                 if (control.attr(validator_name) != null) {
                     if (settings.debug) console.log("   Selected elements: " + $("#" + control.attr("id") + ":checked").length);
-                    if ($("#"+control.attr("id")+":checked").length > 0) {
+                    if ($("#" + control.attr("id") + ":checked").length > 0) {
                         return true;
                     } else return false;
                 }
@@ -263,21 +283,21 @@
     }
 
     /**
-    * PUBLIC METHOD
-    * Registers a new validator.
-    * Receives the name of the validator (tag to search for active) and a function receiving jQuery control to validate.
-    * Returns true if there is error, false if no error.
-    */
-    $.fn.registerValidator = function (validator_name,validator_function) {
+     * PUBLIC METHOD
+     * Registers a new validator.
+     * Receives the name of the validator (tag to search for active) and a function receiving jQuery control to validate.
+     * Returns true if there is error, false if no error.
+     */
+    $.fn.registerValidator = function (validator_name, validator_function) {
         active_validators[validator_name] = validator_function;
     }
 
     /**
-    * PRIVATE METHOD
-    * manages the response after validations, shows Error if necessary
-    */
-    $.fn.manageValidateResponse = function (validator_name,validation_result,control) {
-        if (!validation_result){
+     * PRIVATE METHOD
+     * manages the response after validations, shows Error if necessary
+     */
+    $.fn.manageValidateResponse = function (validator_name, validation_result, control) {
+        if (!validation_result) {
             control.showError(control, validator_name);
         } else {
             $(this).hideError(control, validator_name);
@@ -293,7 +313,7 @@
         //Si hay settings, los mergeamos
         if (options != null)
             this.settings = $.extend(settings, options);
-        
+
         if (settings.debug) console.log("------------- #" + $(this).attr("id") + " ------------------");
 
         //Check if we have to validate the field
@@ -302,12 +322,12 @@
 
         //For every validator
         for (validator_name in active_validators) {
-            if (settings.debug) console.log("** Validator "+validator_name + " active: " + ($(this).attr(validator_name) != null ? "true" : "false"));
+            if (settings.debug) console.log("** Validator " + validator_name + " active: " + ($(this).attr(validator_name) != null ? "true" : "false"));
             if ($(this).attr(validator_name) == null) continue;
 
             var ok = active_validators[validator_name]($(this));
             field_ok &= ok;
-            if (settings.debug) console.log("    Validation isValid: [" + ok + "] Global field validator: [" + field_ok+"]");
+            if (settings.debug) console.log("    Validation isValid: [" + ok + "] Global field validator: [" + field_ok + "]");
             this.manageValidateResponse(validator_name, ok, $(this));
         }
 
@@ -315,14 +335,14 @@
     }
 
     /***************************************************************************
-    *                                   PRIVATE METHODS
-    ****************************************************************************/
+     *                                   PRIVATE METHODS
+     ****************************************************************************/
 
 
     /**
-    *  PRIVATE METHOD
-    *  Mostrar el error de un elemento específico con el mensaje determinado por el usuario
-    */
+     *  PRIVATE METHOD
+     *  Mostrar el error de un elemento específico con el mensaje determinado por el usuario
+     */
     $.fn.showError = function (element, validator_name) {
         if (settings.debug) console.log("    ShowError: " + validator_name);
         validation_ok &= false;
@@ -351,7 +371,7 @@
             var errors = $("#" + settings.validationSummaryControl).html();
             errors += "<span id='" + id + "' class='" + settings.errorClass + "'>" + message + "</span><br/>";
             $("#" + settings.validationSummaryControl).html(errors);
-            $("#" + settings.validationSummaryControl).show();            
+            $("#" + settings.validationSummaryControl).show();
             return;
         }
 
@@ -362,9 +382,9 @@
     }
 
     /**
-    *  PRIVATE METHOD
-    *  Esconde un mensaje de error
-    */
+     *  PRIVATE METHOD
+     *  Esconde un mensaje de error
+     */
     $.fn.hideError = function (element, validator_name) {
         if (settings.debug) console.log("    HideError: " + validator_name);
 
@@ -383,62 +403,72 @@
     }
 
     /**
-    * PUBLIC METHOD
-    * Devuelve si un valor es numérico o no (incluye {. , - } como valores válidos )
-    */
+     * PUBLIC METHOD
+     * Devuelve si un valor es numérico o no (incluye {. , - } como valores válidos )
+     */
     $.fn.isNumeric = function (strString) {
         strString = $.trim(strString);
-        var strValidChars = "0123456789,.-"; var strChar; var blnResult = true; if (strString.length == 0) return false; for (i = 0; i < strString.length && blnResult == true; i++) { strChar = strString.charAt(i); if (strValidChars.indexOf(strChar) == -1) { blnResult = false; } } return blnResult;
+        var strValidChars = "0123456789,.-";
+        var strChar;
+        var blnResult = true;
+        if (strString.length == 0) return false;
+        for (i = 0; i < strString.length && blnResult == true; i++) {
+            strChar = strString.charAt(i);
+            if (strValidChars.indexOf(strChar) == -1) {
+                blnResult = false;
+            }
+        }
+        return blnResult;
     }
 
     /**
-    * PUBLIC METHOD
-    * Wether an element is empty
-    */
+     * PUBLIC METHOD
+     * Wether an element is empty
+     */
     $.fn.isEmpty = function () {
         return $.isEmpty($(this).val());
     }
 
     /**
-    * PUBLIC METHOD
-    * Wether an element is empty
-    */
+     * PUBLIC METHOD
+     * Wether an element is empty
+     */
     $.isEmpty = function (str) {
         if ($.trim(str) == "") return true;
         return false;
     }
 
     /**
-    * PUBLIC METHOD
-    * Checks email format
-    */
-    $.fn.isEmail = function(){
+     * PUBLIC METHOD
+     * Checks email format
+     */
+    $.fn.isEmail = function () {
         return $.isEmail($(this).val());
     }
 
     /**
-    * PUBLIC METHOD
-    * Checks email format
-    */
+     * PUBLIC METHOD
+     * Checks email format
+     */
     $.isEmail = function (str) {
-        var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/; 
-        return str.match(re); 
+        var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        return str.match(re);
     }
 
     /**
-    * PUBLIC METHOD
-    * Replaces all elements of a string
-    */
-    $.fn.replaceAll = function(text, replace, replacewith) {
+     * PUBLIC METHOD
+     * Replaces all elements of a string
+     */
+    $.fn.replaceAll = function (text, replace, replacewith) {
         while (text.toString().indexOf(replace) != -1)
             text = text.toString().replace(replace, replacewith);
         return text;
     }
 
     /**
-    *  PUBLIC METHOD
-    *  Validates IBAN.
-    */
+     *  PUBLIC METHOD
+     *  Validates IBAN.
+     */
     $.fn.validateIBAN = function (IBAN) {
 
         //Limpiamos el numero de IBAN
@@ -474,9 +504,9 @@
     }
 
     /**
-    *  PRIVATE METHOD
-    *  Method necessary for IBAN validation
-    */
+     *  PRIVATE METHOD
+     *  Method necessary for IBAN validation
+     */
     $.fn.ModuloIBAN = function (sModulus, divisor) {
         var iStart, iEnde, iErgebniss, iRestTmp, iBuffer;
         var iRest = "", sErg = "";
@@ -493,8 +523,7 @@
 
                 iStart = iEnde + 1;
                 iEnde = iStart;
-            }
-            else {
+            } else {
 
                 iEnde = iEnde + 1;
             }
@@ -505,9 +534,9 @@
     }
 
     /**
-    *  PRIVATE METHOD
-    *  Method necessary for IBAN validation
-    */
+     *  PRIVATE METHOD
+     *  Method necessary for IBAN validation
+     */
     $.fn.IBANCleaner = function (sIBAN) {
         ls_letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         for (var x = 0; x < ls_letras.length; x++) {
@@ -517,12 +546,12 @@
         }
         return sIBAN;
     }
-    
+
 
     /**
-    *  PRIVATE METHOD
-    *  Verifys date format following DMY
-    */
+     *  PRIVATE METHOD
+     *  Verifys date format following DMY
+     */
     $.fn.checkDateDMY = function (dateString) {
         try {
             var reg = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
@@ -530,8 +559,8 @@
 
             var sdate = dateString.split("/");
             var d = parseInt(sdate[0], 10),
-                 m = parseInt(sdate[1], 10),
-                 y = parseInt(sdate[2], 10);
+                m = parseInt(sdate[1], 10),
+                y = parseInt(sdate[2], 10);
 
             if (d <= 0 || d > 31) return false;
             if (m <= 0 || m > 12) return false;
@@ -543,12 +572,12 @@
     };
 
 
-    /** 
-    *    PRIVATE METHOD
-    *    Parses a date string in the specified format.
-    * dateString: the string with the date to parse, usually a string of the kind 20/02/1978 or 2/20/1978
-    * format: could be a string of the kind M/d/yyyy or dd/MM/yyyy
-    * dateSeparator: the string used to separate the date parts, usually '/'
+    /**
+     *    PRIVATE METHOD
+     *    Parses a date string in the specified format.
+     * dateString: the string with the date to parse, usually a string of the kind 20/02/1978 or 2/20/1978
+     * format: could be a string of the kind M/d/yyyy or dd/MM/yyyy
+     * dateSeparator: the string used to separate the date parts, usually '/'
      */
     $.fn.parseDate = function (dateString, format, dateSeparator) {
         var formatParts = format.split(dateSeparator);
