@@ -106,7 +106,7 @@
 
         if (settings.dataDynamicRevalidate) {
             if (settings.visibleFieldsOnly) {
-                this.find("input,select,textarea:visible").each(function () {
+                this.find("input:visible,select:visible,textarea:visible").each(function () {
                     if (settings.debug) console.log("------------- #" + $(this).attr("id") + " ------------------");
                     $(this).blur(function () {
                         console.log(" >> BLUR: " + $(this).attr("id"));
